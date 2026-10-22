@@ -18,6 +18,10 @@ import static org.mockito.Mockito.when;
  */
 class SettlementServiceTest {
 
+    static {
+        System.setProperty("ledger.reference-data.url", ReferenceDataTestServer.start());
+    }
+
     private final PaymentRepository repository = mock(PaymentRepository.class);
     private final SettlementService service = new SettlementService(repository, new BigDecimal("0.031"));
 

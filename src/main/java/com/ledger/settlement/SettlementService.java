@@ -51,6 +51,7 @@ public class SettlementService {
         long totalMinor = payments.stream().mapToLong(PaymentEntity::getAmountMinor).reduce(0L, Math::addExact);
         long feeMinor = feeFor(totalMinor);
         String currency = payments.getFirst().getCurrency();
+        CurrencyTable.requireSupported(currency);
 
         return new Settlement(merchantId, totalMinor, feeMinor, totalMinor - feeMinor, currency);
     }

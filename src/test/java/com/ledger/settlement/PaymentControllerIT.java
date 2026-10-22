@@ -35,6 +35,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers
 class PaymentControllerIT {
 
+    static {
+        System.setProperty("ledger.reference-data.url", ReferenceDataTestServer.start());
+    }
+
     // @ServiceConnection points spring.datasource.* at this container, so no URL, user or
     // password needs configuring; static means one container shared by every test here.
     @Container
