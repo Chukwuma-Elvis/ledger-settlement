@@ -18,3 +18,7 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+
+ledger:
+  # Settlement fee as a fraction of the payment total (3.1%).
+  fee-rate: 0.031
