@@ -11,7 +11,7 @@
 ```bash
 psql -h localhost -U ledger -d ledger -f perf/seed-load-merchant.sql
 java perf/reference-data-stub/ReferenceDataStub.java 8091 2000      # separate terminal, leave running
-mvn -B package -DskipTests && java -jar target/ledger-settlement.jar  # wait for "Started LedgerApplication"
+mvn -B package -DskipTests && java -jar service/target/ledger-settlement-exec.jar  # wait for "Started LedgerApplication"
 k6 run -e DURATION=15s perf/settlement-load.js                        # warm runs only: 15 s warm-up, discarded
 k6 run perf/settlement-load.js                                        # measured run
 ```
