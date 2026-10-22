@@ -82,6 +82,40 @@ class PaymentControllerWebTest {
         assertProblem(result, 400, "/problems/malformed-body", "Malformed request body", "/payments");
     }
 
+    @Test
+    void getPaymentByIdReturnsTheResponseRecord() {
+        String id = "0fbdf7d6-0be8-43bd-ac3a-9194072bbc7a";
+        when(settlementService.getPayment(id))
+                .thenReturn(new PaymentEntity(id, "MR-4471", 128450, "GBP", Instant.now()));
+
+        MvcTestResult result = mvc.get().uri("/payments/{id}", id).exchange();
+
+        assertThat(result).hasStatus(200).hasContentType(MediaType.APPLICATION_JSON);
+        assertThat(result).bodyJson().extractingPath("$.id").isEqualTo(id);
+        assertThat(result).bodyJson().extractingPath("$.amountMinor").isEqualTo(128450);
+    }
+
+    // Agent Review defect 4: the generated endpoint returned 404 with an empty body.
+    @Test
+    void missingPaymentIs404ProblemDetailNotAnEmptyBody() {
+        String id = "00000000-0000-0000-0000-000000000000";
+        when(settlementService.getPayment(id)).thenThrow(new PaymentNotFoundException(id));
+
+        MvcTestResult result = mvc.get().uri("/payments/{id}", id).exchange();
+
+        assertProblem(result, 404, "/problems/payment-not-found", "Payment not found", "/payments/" + id);
+    }
+
+    // Agent Review defect 3: the generated endpoint had no constraint on the path variable.
+    @Test
+    void nonUuidPaymentIdIs400ProblemDetailAndNeverReachesTheService() {
+        MvcTestResult result = mvc.get().uri("/payments/not-a-uuid").exchange();
+
+        assertProblem(result, 400, "/problems/validation-error", "Invalid request", "/payments/not-a-uuid");
+        assertThat(result).bodyJson().extractingPath("$.errors.id").isEqualTo("must be a UUID");
+        verifyNoInteractions(settlementService);
+    }
+
     private MvcTestResult post(String json) {
         return mvc.post().uri("/payments").contentType(MediaType.APPLICATION_JSON).content(json).exchange();
     }
