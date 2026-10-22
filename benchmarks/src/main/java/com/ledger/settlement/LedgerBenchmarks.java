@@ -46,6 +46,7 @@ public class LedgerBenchmarks {
     /** All inputs live here, built at run time in @Setup, so the JIT cannot constant-fold them. */
     @State(Scope.Benchmark)
     public static class Inputs {
+        String merchantId;
         PaymentEntity payment;
         SettlementService settlementService;
         ProblemHandler problemHandler;
@@ -54,12 +55,13 @@ public class LedgerBenchmarks {
 
         @Setup
         public void setUp() throws Exception {
+            merchantId = "MR-LOAD";
             // Same shape as the MR-LOAD seed data (perf/seed-load-merchant.sql): 500 GBP payments
             // with amounts 1000 + (i * 37) % 9000 minor units.
             List<PaymentAmount> amounts = IntStream.rangeClosed(1, 500)
                     .mapToObj(i -> new PaymentAmount(1000 + (i * 37L) % 9000, "GBP"))
                     .toList();
-            payment = new PaymentEntity(UUID.randomUUID().toString(), "MR-LOAD", 128450, "GBP", Instant.now());
+            payment = new PaymentEntity(UUID.randomUUID().toString(), merchantId, 128450, "GBP", Instant.now());
 
             // The real SettlementService and CurrencyTable; only the repository (a database) is stubbed.
             PaymentRepository repository = (PaymentRepository) Proxy.newProxyInstance(
@@ -121,6 +123,6 @@ public class LedgerBenchmarks {
 
     @Benchmark
     public Settlement settlement500Payments(Inputs in) {
-        return in.settlementService.settlementFor("MR-LOAD");
+        return in.settlementService.settlementFor(in.merchantId);
     }
 }
