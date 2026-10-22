@@ -3,6 +3,7 @@ package com.ledger.settlement;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,6 +34,14 @@ public class PaymentController {
                 .buildAndExpand(payment.getId())
                 .toUri();
         return ResponseEntity.created(location).body(PaymentResponse.from(payment));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PaymentResponse> getPayment(@PathVariable String id) {
+        return settlementService.findPayment(id)
+                .map(PaymentResponse::from)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/settlement")

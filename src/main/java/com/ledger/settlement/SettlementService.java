@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -27,6 +28,11 @@ public class SettlementService {
         PaymentEntity payment = new PaymentEntity(
                 UUID.randomUUID().toString(), merchantId, amountMinor, currency, Instant.now());
         return paymentRepository.save(payment);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<PaymentEntity> findPayment(String id) {
+        return paymentRepository.findById(id);
     }
 
     @Transactional(readOnly = true)
