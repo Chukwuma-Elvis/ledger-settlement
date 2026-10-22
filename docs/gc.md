@@ -107,3 +107,124 @@ About **45% of all allocation** is that timestamp conversion: `Calendar.<init>` 
 
 **Planned remedy (one variable, a code change):** make the settlement query fetch only the two
 columns it uses, as a read-only projection rather than managed entities. No JVM flag changes.
+
+*(Sections 1–5 were committed in `29bc71f`, before any code change. Everything below came after.)*
+
+## 6. Remedy: one code change at the hot site
+
+The diagnosis was allocation pressure, so the remedy is in code. No JVM flag, heap size or
+collector changes; the launch command is identical apart from the jar.
+
+**The change** (`git diff 8558f8a e794e7b -- src/main`: 3 files, 18 insertions, 3 deletions):
+
+```diff
+ // PaymentRepository
++    List<PaymentAmount> findAmountsByMerchantId(String merchantId);   // derived query, record projection
+ // PaymentAmount (new)
++public record PaymentAmount(long amountMinor, String currency) { }
+ // SettlementService.settlementFor
+-        List<PaymentEntity> payments = paymentRepository.findByMerchantId(merchantId);
++        List<PaymentAmount> payments = paymentRepository.findAmountsByMerchantId(merchantId);
+-        long totalMinor = payments.stream().mapToLong(PaymentEntity::getAmountMinor).reduce(0L, Math::addExact);
++        long totalMinor = payments.stream().mapToLong(PaymentAmount::amountMinor).reduce(0L, Math::addExact);
+-        String currency = payments.getFirst().getCurrency();
++        String currency = payments.getFirst().currency();
+```
+
+The SQL changes from selecting all five columns into managed entities to (logged with
+`spring.jpa.show-sql=true`):
+
+```
+select pe1_0.amount_minor,pe1_0.currency from payments pe1_0 where pe1_0.merchant_id=?
+```
+
+**Why this site, and not the alternatives:**
+- It is the site the profile named: about 57% of allocation (timestamp conversion plus the
+  persistence context) came from loading data settlement never reads.
+- *Sum in the database* (`select sum(amount_minor)`) would allocate even less, but it needs
+  hand-written JPQL. The repository has none, and it would change how the currency check works.
+- *Read-only entities* (Hibernate query hints) would skip dirty-checking snapshots but still convert
+  every `recorded_at` timestamp: the largest single cost.
+- *JVM flags* (`-Xmx`, `-XX:+UseZGC`): pauses are already 1 ms median and 0.27% of time. A flag
+  would move the same garbage around without reducing it.
+
+**A first attempt that made it worse, kept in the history.** The first version (`503932d`) used an
+*interface* projection. Measured twice under the same 10-minute load (`proxy-*` in the evidence
+zip): allocation rose from 243.5 to **415.8 MB/s** (+71%) and collections to 1,977 and 2,416. The
+timestamp allocations were gone, but Spring Data builds interface projections as **proxies, one per
+row**: `java.lang.reflect.Method.copy` 20.7%, `AdvisedSupport.adviceChanged` 7.5%,
+`ProxyProjectionFactory.createProjection` 4.3%. Switching the same projection to a **record**
+(`e794e7b`) makes Spring Data use a constructor call: same SQL, no proxies. A 60 s check showed
+64.3 MB/s before the full runs below.
+
+## 7. Tuned runs
+
+Identical to the baseline runs: same script, rate, duration, machine, database and seed data,
+same procedure (JVM at T0, k6 at T0+30 s, recording T0+90 s to T0+690 s). Only the jar differs.
+From `commands.log`:
+
+```
+java -XX:StartFlightRecording=delay=90s,duration=10m,filename=gc-baseline-2.jfr,settings=profile -jar baseline-8558f8a.jar
+java -XX:StartFlightRecording=delay=90s,duration=10m,filename=gc-tuned-1.jfr,settings=profile -jar tuned-e794e7b.jar
+```
+
+Two tuned runs, both 600 s, 180,000 requests at 300.0 req/s, 0 failed, 0 dropped. Background CPU
+(everything except the service, k6 and PostgreSQL): tuned 4.3% mean, baseline run 4 4.3% mean.
+Steady state: collections per minute 53, 45, 40, 40, 40, 40, 40, 41, 40, 40 (run 1); sampled allocation
+40 MB/s in minutes 2–10.
+
+## 8. Baseline vs tuned
+
+Baseline = runs 2 and 4 (`8558f8a`); tuned = runs 1 and 2 (`e794e7b`). A change is called **no
+change** when the two runs of each side overlap.
+
+| Measure | Baseline (run 2 / run 4) | Tuned (run 1 / run 2) | Change |
+|---|---|---|---|
+| Allocation rate | 243.5 / 243.5 MB/s | **49.8 / 49.8 MB/s** | **−79.5%** |
+| Collection count (10 min) | 1,588 / 1,780 | **465 / 455** | **−72.7%** |
+| Longest pause | 3.2 / 10.3 ms | 7.6 / 12.4 ms | **no change** (ranges overlap) |
+| p99 request latency | 4.04 / 6.09 ms | **3.38 / 3.02 ms** | **−36.8%** |
+| Throughput | 300.0 / 300.0 req/s | 300.0 / 300.0 req/s | no change (fixed arrival rate) |
+| *p50 request latency* | 1.79 / 1.99 ms | 1.44 / 1.44 ms | −23.8% |
+| *Total GC pause time* | 1.64 / 2.11 s | 0.57 / 0.54 s | −70.4% |
+| *Heap after GC / committed max* | 44–63 MB / 130–145 MB | 38–43 MB / 111 MB | lower |
+| *Startup* | 11.0 / 13.2 s | 12.4 / 11.8 s | no change |
+
+Allocation cross-check (`jdk.ThreadAllocationStatistics`): 220.6 → 44.8 MB/s (−79.7%), agreeing with
+the sampled figure. `jfr view gc-pauses`, tuned run 1: 484 pauses, median 1.01 ms, p99 4.07 ms.
+
+What is left is mostly unavoidable: the driver reading row bytes (`PGStream.receiveTupleV3` 20.8%),
+virtual-thread stack chunks when requests park (`Continuation.doYield` 11.0%), and `Instant.create`
+10.1%. The latter is not from this query, which no longer reads a timestamp; its source was not
+investigated.
+
+## 9. The trade
+
+No regression was measured in throughput, memory footprint or startup time: the arrival rate is
+fixed, the heap shrank, and startup times overlap. Throughput *capacity* was not measured here, only
+latency at 300 req/s. The cost is in the code: settlement now depends on a second repository method
+and a projection type that must change if settlement ever needs another column.
+
+The trade is acceptable for this service because settlement is its most expensive and busiest read,
+and the projection cuts allocation by four-fifths and p99 latency by a third while returning
+identical results (the IT still settles MR-4471 to 124,469). It would stop being acceptable if
+settlement had to return per-payment detail such as timestamps: then the projection would have to
+widen towards the full entity, and most of the saving would go with it.
+
+## 10. Evidence and reproduction
+
+Recordings: `docs/jfr/gc-baseline.jfr` (baseline run 2) and `docs/jfr/gc-tuned.jfr` (tuned run 1).
+Everything else is in `docs/evidence/lab2-evidence.zip`: `commands.log` (every command, timestamped),
+`heap-flags.txt`, k6 output and service logs for every run (`runs/`), the analysis of every
+recording including the `jfr view` outputs and the calendar allocation stack (`analysis/`),
+background CPU every 10 s, the 60 s record-projection check, and `clean-clone-mvn-verify.log`
+(`feature/gc-tuning` cloned fresh with no `.env`: `mvn -B verify` 22/22, BUILD SUCCESS). No JVM flags
+are applied anywhere: the change is in code only.
+
+```bash
+psql -h localhost -U ledger -d ledger -f perf/seed-load-merchant.sql
+java perf/reference-data-stub/ReferenceDataStub.java 8091 2000            # leave running
+mvn -B package -DskipTests
+java -XX:StartFlightRecording=delay=90s,duration=10m,filename=gc-tuned.jfr,settings=profile -jar target/ledger-settlement.jar
+k6 run perf/steady-load.js                                                 # start 30 s after the JVM
+```
