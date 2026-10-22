@@ -1,0 +1,20 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ledger-settlement
+  config:
+    # Local secrets (e.g. DB_PASSWORD=...) live in a git-ignored .env file in the project root.
+    # Real environment variables still take precedence over it.
+    import: optional:file:.env[.properties]
+  datasource:
+    # Credentials come from environment variables so no password is committed.
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ledger}
+    username: ${DB_USERNAME:ledger}
+    password: ${DB_PASSWORD:}
+  jpa:
+    # Flyway owns the schema; Hibernate only checks the entities match it.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
