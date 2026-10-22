@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,9 +25,19 @@ public class SettlementService {
 
     @Transactional
     public PaymentEntity recordPayment(String merchantId, long amountMinor, String currency) {
+        // PostgreSQL timestamps hold microseconds and round anything finer, so truncate here:
+        // otherwise the POST response echoes a recordedAt that differs from what is stored.
+        Instant recordedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
         PaymentEntity payment = new PaymentEntity(
-                UUID.randomUUID().toString(), merchantId, amountMinor, currency, Instant.now());
+                UUID.randomUUID().toString(), merchantId, amountMinor, currency, recordedAt);
         return paymentRepository.save(payment);
+    }
+
+    // Throws instead of returning Optional so "not found" flows through ProblemHandler
+    // like every other failure, giving clients the same problem+json shape.
+    @Transactional(readOnly = true)
+    public PaymentEntity getPayment(String id) {
+        return paymentRepository.findById(id).orElseThrow(() -> new PaymentNotFoundException(id));
     }
 
     @Transactional(readOnly = true)

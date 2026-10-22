@@ -68,6 +68,23 @@ class PaymentControllerIT {
     }
 
     @Test
+    void locationHeaderFromPostResolvesToTheSamePayment() {
+        ResponseEntity<PaymentResponse> created = http.post()
+                .uri("/payments")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new RecordPaymentRequest("MR-4471", 128450, "GBP"))
+                .retrieve()
+                .toEntity(PaymentResponse.class);
+
+        PaymentResponse fetched = http.get()
+                .uri(created.getHeaders().getLocation())
+                .retrieve()
+                .body(PaymentResponse.class);
+
+        assertThat(fetched).isEqualTo(created.getBody());
+    }
+
+    @Test
     void postedPaymentIsActuallyPersistedInPostgres() {
         http.post()
                 .uri("/payments")

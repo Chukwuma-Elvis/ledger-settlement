@@ -11,6 +11,7 @@ import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.net.URI;
 import java.util.Map;
@@ -28,6 +29,7 @@ public class ProblemHandler {
 
     static final URI VALIDATION_TYPE = URI.create("/problems/validation-error");
     static final URI UNKNOWN_MERCHANT_TYPE = URI.create("/problems/unknown-merchant");
+    static final URI PAYMENT_NOT_FOUND_TYPE = URI.create("/problems/payment-not-found");
     static final URI MALFORMED_BODY_TYPE = URI.create("/problems/malformed-body");
     static final URI INTERNAL_ERROR_TYPE = URI.create("/problems/internal-error");
 
@@ -45,9 +47,30 @@ public class ProblemHandler {
         return problem;
     }
 
+    // Constraint annotations on @PathVariable / @RequestParam (e.g. @Pattern on the payment id).
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ProblemDetail handleParameterValidation(HandlerMethodValidationException ex, HttpServletRequest request) {
+        Map<String, String> errors = new TreeMap<>();
+        ex.getParameterValidationResults().forEach(result -> result.getResolvableErrors().forEach(error ->
+                errors.putIfAbsent(result.getMethodParameter().getParameterName(),
+                        error.getDefaultMessage() == null ? "is invalid" : error.getDefaultMessage())));
+        String detail = errors.entrySet().stream()
+                .map(error -> error.getKey() + ": " + error.getValue())
+                .collect(Collectors.joining("; "));
+
+        ProblemDetail problem = problem(HttpStatus.BAD_REQUEST, VALIDATION_TYPE, "Invalid request", detail, request);
+        problem.setProperty("errors", errors);
+        return problem;
+    }
+
     @ExceptionHandler(UnknownMerchantException.class)
     public ProblemDetail handleUnknownMerchant(UnknownMerchantException ex, HttpServletRequest request) {
         return problem(HttpStatus.NOT_FOUND, UNKNOWN_MERCHANT_TYPE, "Unknown merchant", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(PaymentNotFoundException.class)
+    public ProblemDetail handlePaymentNotFound(PaymentNotFoundException ex, HttpServletRequest request) {
+        return problem(HttpStatus.NOT_FOUND, PAYMENT_NOT_FOUND_TYPE, "Payment not found", ex.getMessage(), request);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
