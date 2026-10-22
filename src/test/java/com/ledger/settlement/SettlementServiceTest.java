@@ -57,7 +57,7 @@ class SettlementServiceTest {
 
     @Test
     void unknownMerchantIsRejected() {
-        when(repository.findByMerchantId("NOPE")).thenReturn(List.of());
+        when(repository.findAmountsByMerchantId("NOPE")).thenReturn(List.of());
 
         assertThatThrownBy(() -> service.settlementFor("NOPE"))
                 .isInstanceOf(UnknownMerchantException.class)
@@ -78,9 +78,19 @@ class SettlementServiceTest {
     }
 
     private void givenPayments(String merchantId, long... amounts) {
-        List<PaymentEntity> payments = Arrays.stream(amounts)
-                .mapToObj(amount -> new PaymentEntity("id-" + amount, merchantId, amount, "GBP", Instant.now()))
+        List<PaymentAmount> payments = Arrays.stream(amounts)
+                .<PaymentAmount>mapToObj(amount -> new Amount(amount, "GBP"))
                 .toList();
-        when(repository.findByMerchantId(merchantId)).thenReturn(payments);
+        when(repository.findAmountsByMerchantId(merchantId)).thenReturn(payments);
+    }
+
+    private record Amount(long amountMinor, String currency) implements PaymentAmount {
+        public long getAmountMinor() {
+            return amountMinor;
+        }
+
+        public String getCurrency() {
+            return currency;
+        }
     }
 }
