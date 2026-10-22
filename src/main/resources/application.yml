@@ -26,3 +26,6 @@ spring:
 ledger:
   # Settlement fee as a fraction of the payment total (3.1%).
   fee-rate: 0.031
+  reference-data:
+    # Currency table, fetched once at startup (perf/reference-data-stub serves it locally).
+    url: ${REFERENCE_DATA_URL:http://localhost:8091/currencies}

@@ -1,28 +1,28 @@
 package com.ledger.settlement;
 
+import org.springframework.stereotype.Component;
+
 import java.util.Map;
 
 /**
  * Currency reference data used when settling a merchant.
  *
- * DELIBERATE DEFECT (Lab 1, step 6): the table is fetched over HTTP inside the class initializer.
- * The first request that touches this class runs that blocking call inside <clinit>, where a
- * virtual thread cannot unmount, so it pins its carrier; every other request that touches the
- * class meanwhile waits for initialization to finish. Only a cold JVM shows it.
+ * Fetched once, eagerly, when Spring creates this bean at startup. Singletons are created before
+ * the web server opens its port, so the blocking HTTP call runs on the startup (platform) thread
+ * before any request exists. Request threads (virtual) only read an immutable map: nothing
+ * blocks in a class initializer, so nothing pins. Replaces a static {} fetch (docs/threads.md).
  */
-final class CurrencyTable {
+@Component
+class CurrencyTable {
 
-    private static final Map<String, Integer> MINOR_UNITS;
+    private final Map<String, Integer> minorUnits;
 
-    static {
-        MINOR_UNITS = ReferenceDataClient.fetchCurrencyTable();
+    CurrencyTable(ReferenceDataClient referenceDataClient) {
+        this.minorUnits = Map.copyOf(referenceDataClient.fetchCurrencyTable());
     }
 
-    private CurrencyTable() {
-    }
-
-    static void requireSupported(String currency) {
-        if (!MINOR_UNITS.containsKey(currency)) {
+    void requireSupported(String currency) {
+        if (!minorUnits.containsKey(currency)) {
             throw new IllegalStateException("Currency not in reference data: " + currency);
         }
     }

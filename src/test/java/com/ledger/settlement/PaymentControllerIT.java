@@ -17,6 +17,8 @@ import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.testcontainers.junit.jupiter.Container;
@@ -35,8 +37,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers
 class PaymentControllerIT {
 
-    static {
-        System.setProperty("ledger.reference-data.url", ReferenceDataTestServer.start());
+    // The CurrencyTable bean fetches the currency table over HTTP at startup.
+    @DynamicPropertySource
+    static void referenceData(DynamicPropertyRegistry registry) {
+        registry.add("ledger.reference-data.url", ReferenceDataTestServer::start);
     }
 
     // @ServiceConnection points spring.datasource.* at this container, so no URL, user or
