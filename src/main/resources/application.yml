@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: ledger-settlement
+  threads:
+    virtual:
+      # Each HTTP request runs on its own virtual thread instead of Tomcat's 200-thread pool.
+      enabled: true
   config:
     # Local secrets (e.g. DB_PASSWORD=...) live in a git-ignored .env file in the project root.
     # Real environment variables still take precedence over it.

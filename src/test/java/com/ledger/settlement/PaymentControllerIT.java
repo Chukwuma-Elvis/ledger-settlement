@@ -1,18 +1,29 @@
 package com.ledger.settlement;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.filter.OncePerRequestFilter;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+
+import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -82,6 +93,38 @@ class PaymentControllerIT {
                 .body(PaymentResponse.class);
 
         assertThat(fetched).isEqualTo(created.getBody());
+    }
+
+    @Test
+    void requestsAreHandledOnVirtualThreads() {
+        http.get().uri("/payments/settlement?merchantId={id}", "MR-NONE").retrieve()
+                .onStatus(status -> true, (request, response) -> { }).toBodilessEntity();
+
+        assertThat(RequestThreadProbe.lastRequestWasVirtual).isTrue();
+    }
+
+    @Test
+    void applicationTaskExecutorRunsTasksOnVirtualThreads(
+            @Autowired @Qualifier("applicationTaskExecutor") AsyncTaskExecutor executor) throws Exception {
+        assertThat(executor.submit(() -> Thread.currentThread().isVirtual()).get()).isTrue();
+    }
+
+    /** Records whether the thread that served the last HTTP request was a virtual thread. */
+    @TestConfiguration
+    static class RequestThreadProbe {
+        static volatile boolean lastRequestWasVirtual;
+
+        @Bean
+        OncePerRequestFilter requestThreadProbe() {
+            return new OncePerRequestFilter() {
+                @Override
+                protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                                FilterChain chain) throws ServletException, IOException {
+                    lastRequestWasVirtual = Thread.currentThread().isVirtual();
+                    chain.doFilter(request, response);
+                }
+            };
+        }
     }
 
     @Test
