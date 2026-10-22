@@ -79,18 +79,8 @@ class SettlementServiceTest {
 
     private void givenPayments(String merchantId, long... amounts) {
         List<PaymentAmount> payments = Arrays.stream(amounts)
-                .<PaymentAmount>mapToObj(amount -> new Amount(amount, "GBP"))
+                .mapToObj(amount -> new PaymentAmount(amount, "GBP"))
                 .toList();
         when(repository.findAmountsByMerchantId(merchantId)).thenReturn(payments);
-    }
-
-    private record Amount(long amountMinor, String currency) implements PaymentAmount {
-        public long getAmountMinor() {
-            return amountMinor;
-        }
-
-        public String getCurrency() {
-            return currency;
-        }
     }
 }

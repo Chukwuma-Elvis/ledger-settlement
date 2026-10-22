@@ -53,9 +53,9 @@ public class SettlementService {
         }
 
         // addExact fails loudly on overflow instead of silently wrapping a money total.
-        long totalMinor = payments.stream().mapToLong(PaymentAmount::getAmountMinor).reduce(0L, Math::addExact);
+        long totalMinor = payments.stream().mapToLong(PaymentAmount::amountMinor).reduce(0L, Math::addExact);
         long feeMinor = feeFor(totalMinor);
-        String currency = payments.getFirst().getCurrency();
+        String currency = payments.getFirst().currency();
         currencyTable.requireSupported(currency);
 
         return new Settlement(merchantId, totalMinor, feeMinor, totalMinor - feeMinor, currency);

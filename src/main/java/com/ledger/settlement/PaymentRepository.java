@@ -9,6 +9,6 @@ public interface PaymentRepository extends JpaRepository<PaymentEntity, String> 
     // Derived query: Spring Data builds "where merchant_id = ?" from the method name.
     List<PaymentEntity> findByMerchantId(String merchantId);
 
-    // Derived query with an interface projection: selects amount_minor and currency only.
+    // Derived query with a record (class) projection: selects amount_minor and currency only.
     List<PaymentAmount> findAmountsByMerchantId(String merchantId);
 }
