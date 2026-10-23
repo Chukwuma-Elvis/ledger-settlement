@@ -225,6 +225,6 @@ are applied anywhere: the change is in code only.
 psql -h localhost -U ledger -d ledger -f perf/seed-load-merchant.sql
 java perf/reference-data-stub/ReferenceDataStub.java 8091 2000            # leave running
 mvn -B package -DskipTests
-java -XX:StartFlightRecording=delay=90s,duration=10m,filename=gc-tuned.jfr,settings=profile -jar target/ledger-settlement.jar
+java -XX:StartFlightRecording=delay=90s,duration=10m,filename=gc-tuned.jfr,settings=profile -jar service/target/ledger-settlement-exec.jar
 k6 run perf/steady-load.js                                                 # start 30 s after the JVM
 ```
