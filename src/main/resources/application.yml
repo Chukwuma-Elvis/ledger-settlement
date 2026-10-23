@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: ledger-settlement
+  threads:
+    virtual:
+      # Each HTTP request runs on its own virtual thread instead of Tomcat's 200-thread pool.
+      enabled: true
   config:
     # Local secrets (e.g. DB_PASSWORD=...) live in a git-ignored .env file in the project root.
     # Real environment variables still take precedence over it.
@@ -22,3 +26,6 @@ spring:
 ledger:
   # Settlement fee as a fraction of the payment total (3.1%).
   fee-rate: 0.031
+  reference-data:
+    # Currency table, fetched once at startup (perf/reference-data-stub serves it locally).
+    url: ${REFERENCE_DATA_URL:http://localhost:8091/currencies}

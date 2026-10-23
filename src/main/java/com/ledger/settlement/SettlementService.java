@@ -16,11 +16,14 @@ public class SettlementService {
 
     private final PaymentRepository paymentRepository;
     private final BigDecimal feeRate;
+    private final CurrencyTable currencyTable;
 
     public SettlementService(PaymentRepository paymentRepository,
-                             @Value("${ledger.fee-rate}") BigDecimal feeRate) {
+                             @Value("${ledger.fee-rate}") BigDecimal feeRate,
+                             CurrencyTable currencyTable) {
         this.paymentRepository = paymentRepository;
         this.feeRate = feeRate;
+        this.currencyTable = currencyTable;
     }
 
     @Transactional
@@ -51,6 +54,7 @@ public class SettlementService {
         long totalMinor = payments.stream().mapToLong(PaymentEntity::getAmountMinor).reduce(0L, Math::addExact);
         long feeMinor = feeFor(totalMinor);
         String currency = payments.getFirst().getCurrency();
+        currencyTable.requireSupported(currency);
 
         return new Settlement(merchantId, totalMinor, feeMinor, totalMinor - feeMinor, currency);
     }

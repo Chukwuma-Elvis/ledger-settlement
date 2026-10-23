@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -19,7 +20,8 @@ import static org.mockito.Mockito.when;
 class SettlementServiceTest {
 
     private final PaymentRepository repository = mock(PaymentRepository.class);
-    private final SettlementService service = new SettlementService(repository, new BigDecimal("0.031"));
+    private final CurrencyTable currencyTable = new CurrencyTable(() -> Map.of("GBP", 2));
+    private final SettlementService service = new SettlementService(repository, new BigDecimal("0.031"), currencyTable);
 
     @Test
     void labScenarioRoundsFeeDownSoMerchantIsOwed124469() {
