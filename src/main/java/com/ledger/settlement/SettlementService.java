@@ -45,15 +45,17 @@ public class SettlementService {
 
     @Transactional(readOnly = true)
     public Settlement settlementFor(String merchantId) {
-        List<PaymentEntity> payments = paymentRepository.findByMerchantId(merchantId);
+        // Only the two columns settlement uses: loading full entities converted every row's
+        // recorded_at timestamp and tracked 500 managed entities per request (docs/gc.md).
+        List<PaymentAmount> payments = paymentRepository.findAmountsByMerchantId(merchantId);
         if (payments.isEmpty()) {
             throw new UnknownMerchantException(merchantId);
         }
 
         // addExact fails loudly on overflow instead of silently wrapping a money total.
-        long totalMinor = payments.stream().mapToLong(PaymentEntity::getAmountMinor).reduce(0L, Math::addExact);
+        long totalMinor = payments.stream().mapToLong(PaymentAmount::amountMinor).reduce(0L, Math::addExact);
         long feeMinor = feeFor(totalMinor);
-        String currency = payments.getFirst().getCurrency();
+        String currency = payments.getFirst().currency();
         currencyTable.requireSupported(currency);
 
         return new Settlement(merchantId, totalMinor, feeMinor, totalMinor - feeMinor, currency);

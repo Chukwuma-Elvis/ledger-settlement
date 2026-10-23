@@ -57,7 +57,7 @@ class SettlementServiceTest {
 
     @Test
     void unknownMerchantIsRejected() {
-        when(repository.findByMerchantId("NOPE")).thenReturn(List.of());
+        when(repository.findAmountsByMerchantId("NOPE")).thenReturn(List.of());
 
         assertThatThrownBy(() -> service.settlementFor("NOPE"))
                 .isInstanceOf(UnknownMerchantException.class)
@@ -78,9 +78,9 @@ class SettlementServiceTest {
     }
 
     private void givenPayments(String merchantId, long... amounts) {
-        List<PaymentEntity> payments = Arrays.stream(amounts)
-                .mapToObj(amount -> new PaymentEntity("id-" + amount, merchantId, amount, "GBP", Instant.now()))
+        List<PaymentAmount> payments = Arrays.stream(amounts)
+                .mapToObj(amount -> new PaymentAmount(amount, "GBP"))
                 .toList();
-        when(repository.findByMerchantId(merchantId)).thenReturn(payments);
+        when(repository.findAmountsByMerchantId(merchantId)).thenReturn(payments);
     }
 }

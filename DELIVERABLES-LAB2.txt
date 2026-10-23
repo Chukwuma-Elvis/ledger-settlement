@@ -1,0 +1,29 @@
+Lab 2: Garbage collection under load. Deliverables
+==================================================
+Paths are relative to the repository root.
+Git branch:   feature/gc-tuning  (based on feature/virtual-threads)
+Pull request: https://github.com/Chukwuma-Elvis/ledger-settlement/pull/4
+
+Deliverable 1: both recordings and the committed load script
+  docs/jfr/gc-baseline.jfr     (600 s, before the fix)
+  docs/jfr/gc-tuned.jfr        (600 s, after the fix)
+  perf/steady-load.js          (constant-arrival-rate, 300 req/s, 10 m)
+
+Deliverable 2: the pull request (one change, measured improvement, risk, monitoring, rollback)
+  https://github.com/Chukwuma-Elvis/ledger-settlement/pull/4
+
+Write-up (heap settings, four numbers, classification, remedy, comparison table, trade)
+  docs/gc.md
+
+The one code change (allocation fix at the profiled site)
+  src/main/java/com/ledger/settlement/PaymentAmount.java
+  src/main/java/com/ledger/settlement/PaymentRepository.java
+  src/main/java/com/ledger/settlement/SettlementService.java
+  src/test/java/com/ledger/settlement/SettlementServiceTest.java
+
+Build
+  pom.xml                      (jar: target/ledger-settlement.jar)
+  .github/workflows/ci.yml     (mvn -B verify on every PR)
+
+Raw evidence (k6 summaries, jfr print/view output, commands.log, clean-clone build; index in docs/gc.md section 10)
+  docs/evidence/lab2-evidence.zip
