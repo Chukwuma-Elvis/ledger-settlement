@@ -1,0 +1,39 @@
+Lab 0: Ledger settlement service. Deliverables
+===============================================
+Paths are relative to the repository root.
+Git branch: main
+GitHub:     https://github.com/Chukwuma-Elvis/ledger-settlement/tree/main
+
+Deliverable 1: integration test (POST 128450 for MR-4471 -> settlement 124469)
+  src/test/java/com/ledger/settlement/PaymentControllerIT.java
+
+Deliverable 2: endpoint log (columns: Request | Status | Body summary | Time; five calls)
+  endpoint-log.md
+
+Deliverable 3: research notes (quoted doc sentence + page title + date; "## Agent Review")
+  research.md
+
+Project files the lab names
+  pom.xml                                                    (Java 25, Boot 4.1, finalName ledger-settlement)
+  src/main/java/com/ledger/settlement/LedgerApplication.java
+  src/main/java/com/ledger/settlement/PaymentEntity.java
+  src/main/java/com/ledger/settlement/PaymentRepository.java
+  src/main/java/com/ledger/settlement/SettlementService.java
+  src/main/java/com/ledger/settlement/PaymentController.java
+  src/main/java/com/ledger/settlement/RecordPaymentRequest.java
+  src/main/java/com/ledger/settlement/PaymentResponse.java
+  src/main/java/com/ledger/settlement/SettlementResponse.java
+  src/main/java/com/ledger/settlement/ProblemHandler.java
+  src/main/resources/application.yml                         (datasource, ledger.fee-rate: 0.031)
+  src/main/resources/db/migration/V1__create_payments.sql
+
+Agent review (GET /payments/{id})
+  src/main/java/com/ledger/settlement/PaymentNotFoundException.java
+  Branch agent/get-payment-by-id (agent output and fixes, merged into main)
+
+Other tests
+  src/test/java/com/ledger/settlement/PaymentControllerWebTest.java
+  src/test/java/com/ledger/settlement/SettlementServiceTest.java
+
+Configuration
+  .env.example                                               (template for the git-ignored .env)
