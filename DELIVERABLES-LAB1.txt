@@ -1,0 +1,44 @@
+Lab 1: Virtual threads. Deliverables
+====================================
+Paths are relative to the repository root.
+This file is on branch docs/virtual-threads-writeup, which contains all of Lab 1.
+
+Branches and pull requests (stacked; each PR shows only its own changes)
+  perf/load-harness            -> main                     https://github.com/Chukwuma-Elvis/ledger-settlement/pull/1
+  feature/virtual-threads      -> perf/load-harness        https://github.com/Chukwuma-Elvis/ledger-settlement/pull/2
+  docs/virtual-threads-writeup -> feature/virtual-threads  https://github.com/Chukwuma-Elvis/ledger-settlement/pull/3
+  The branch the lab names is feature/virtual-threads (PR #2: the migration, defect, fix and both recordings).
+  docs/threads.md is in PR #3.
+
+Deliverable 1: write-up (pinned event + stack trace + reason, frame, blocking call,
+               synchronized note, before/after table of throughput, p50, p95, p99)
+  docs/threads.md
+
+Deliverable 2: two JFR recordings
+  docs/jfr/pinned.jfr    (contains jdk.VirtualThreadPinned events)
+  docs/jfr/fixed.jfr     (contains none)
+
+Load test (200 virtual users x 60 s)
+  perf/settlement-load.js
+  perf/seed-load-merchant.sql
+  perf/README.md
+  perf/reference-data-stub/ReferenceDataStub.java          (downstream service for the defect)
+
+Migration (step 4)
+  src/main/resources/application.yml                       (spring.threads.virtual.enabled: true)
+  src/main/java/com/ledger/settlement/VirtualThreadConfig.java
+
+Planted defect and fix (steps 6 and 9)
+  src/main/java/com/ledger/settlement/CurrencyTable.java   (fixed version; defect is commit 3cc9f3e)
+  src/main/java/com/ledger/settlement/ReferenceDataClient.java
+  src/main/java/com/ledger/settlement/HttpReferenceDataClient.java
+  src/main/java/com/ledger/settlement/StartupWarmUp.java
+  src/test/java/com/ledger/settlement/CurrencyTableTest.java   (concurrent first access)
+  src/test/java/com/ledger/settlement/ReferenceDataTestServer.java
+
+Virtual-thread proof and build
+  src/test/java/com/ledger/settlement/PaymentControllerIT.java  (Thread.currentThread().isVirtual())
+  .github/workflows/ci.yml                                   (mvn -B verify on every PR)
+
+Raw evidence (every k6 summary, jfr output, toolchain, clean-clone build; index in docs/threads.md)
+  docs/evidence/lab1-evidence.zip
