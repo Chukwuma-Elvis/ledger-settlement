@@ -17,3 +17,6 @@ jobs:
           cache: maven
       - name: Build, unit tests and Testcontainers integration tests
         run: mvn -B verify
+      # Proves the suite runs from the built jar; 1 fork x 1 s iterations, so its numbers mean nothing.
+      - name: Benchmarks smoke run
+        run: java -jar benchmarks/target/benchmarks.jar -f 1 -wi 1 -i 1 -w 1s -r 1s

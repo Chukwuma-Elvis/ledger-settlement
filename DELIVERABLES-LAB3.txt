@@ -1,0 +1,33 @@
+Lab 3: JMH benchmark suite. Deliverables
+========================================
+Paths are relative to the repository root.
+Git branch:   feature/jmh-benchmarks  (based on feature/gc-tuning)
+Pull request: https://github.com/Chukwuma-Elvis/ledger-settlement/pull/5
+
+Deliverable 1: results.json from the final run, plus the broken and fixed numbers
+  benchmarks/results.json            (final run, README command)
+  benchmarks/results-prof-gc.json    (same suite with -prof gc: bytes/op)
+  Broken vs fixed numbers and the 12.7x error: docs/benchmarks.md, section 6
+
+Deliverable 2: write-up (results table with score +/- error and unit, inconclusive
+               comparisons marked, limits section)
+  docs/benchmarks.md
+
+Benchmarks module (jmh-core + jmh-generator-annprocess 1.37, shade -> benchmarks.jar)
+  pom.xml                            (parent: service + benchmarks)
+  benchmarks/pom.xml
+  benchmarks/src/main/java/com/ledger/settlement/LedgerBenchmarks.java
+  Built jar: benchmarks/target/benchmarks.jar   (created by the build, not in git)
+
+The three real methods benchmarked
+  service/src/main/java/com/ledger/settlement/PaymentResponse.java    (PaymentResponse.from: mapping)
+  service/src/main/java/com/ledger/settlement/ProblemHandler.java     (handleValidation: strings/collections)
+  service/src/main/java/com/ledger/settlement/SettlementService.java  (settlementFor: settlement on long minor units)
+
+One-command run and build
+  README.md                          (one command, about 38 minutes)
+  service/pom.xml                    (service jar has no JMH dependency)
+  .github/workflows/ci.yml           (mvn -B verify + benchmark smoke run on every PR)
+
+Raw evidence (consoles, commands.log, JFR allocation views, clean-clone build; INDEX.txt inside)
+  docs/evidence/lab3-evidence.zip
